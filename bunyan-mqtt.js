@@ -1,39 +1,56 @@
-/*
-** © 2013 by Philipp Dunkel <pip@pipobscure.com>. Licensed under MIT-License.
-*/
+(function() {
+  "use strict";
+  var BunyanMqtt, mqtt;
 
-'use strict';
+  mqtt = require("mqtt");
 
-exports = module.exports = createStream;
-
-var mqtt = require('mqtt');
-
-function createStream(opts) {
-  opts.topic = opts.topic || 'bunyan';
-  opts.port = opts.port || 1883;
-  opts.host = opts.host || 'localhost';
-  opts.protocol = opts.protocol || 'mqtt';
-  opts.addLevel = !!opts.addLevel;
-  return Object.create(opts || {}, {
-    write:{
-      value:write,
-      enumerable:true,
-      configurable:true,
-      writable:true
-    },
-    mqtt:{
-      value:opts.mqtt || mqtt.connect(opts),
-      enumerable:false,
-      configurable:false,
-      writable:false
+  BunyanMqtt = (function() {
+    function BunyanMqtt(options) {
+      var mqttOptions;
+      if (!(this instanceof BunyanMqtt)) {
+        return new BunyanMqtt(options);
+      }
+      this.topic = options.topic, this.port = options.port, this.host = options.host, this.protocol = options.protocol, this.qos = options.qos, this.retain = options.retain;
+      if (this.topic == null) {
+        this.topic = "bunyan";
+      }
+      if (this.port == null) {
+        this.port = 1883;
+      }
+      if (this.host == null) {
+        this.host = "localhost";
+      }
+      if (this.protocol == null) {
+        this.protocol = "mqtt";
+      }
+      if (this.qos == null) {
+        this.qos = 0;
+      }
+      if (this.retain == null) {
+        this.retain = false;
+      }
+      mqttOptions = {
+        port: this.port,
+        host: this.host,
+        protocol: this.protocol
+      };
+      this.mqtt = mqtt.connect(mqttOptions);
     }
-  });
-}
 
-function write(item) {
-  /*jslint validthis:true */
-  var topic = [ this.topic ];
-  if (this.addLevel) topic.push(item.level || '100');
-  topic = topic.join('/');
-  this.mqtt.publish(topic, JSON.stringify(item));
-}
+    BunyanMqtt.prototype.write = function(item) {
+      var message, options;
+      message = JSON.stringify(item);
+      options = {
+        qos: this.qos,
+        retain: this.retain
+      };
+      return this.mqtt.publish(this.topic, message, options);
+    };
+
+    return BunyanMqtt;
+
+  })();
+
+  module.exports = BunyanMqtt;
+
+}).call(this);
